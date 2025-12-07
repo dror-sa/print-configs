@@ -1,16 +1,20 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, CSSProperties } from 'react'
+import { Pencil } from 'lucide-react'
+import EditDialog from './components/EditDialog'
+import { DriverGroup } from './types'
 
 export default function Home() {
-  const [drivers, setDrivers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState(null)
+  const [drivers, setDrivers] = useState<DriverGroup[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [search, setSearch] = useState<string>('')
+  const [selectedGroup, setSelectedGroup] = useState<DriverGroup | null>(null)
+  const [editingGroup, setEditingGroup] = useState<DriverGroup | null>(null)
 
-  useEffect(() => {
+  const fetchDrivers = () => {
     fetch('/api/drivers')
       .then(res => res.json())
-      .then(data => {
+      .then((data: DriverGroup[]) => {
         setDrivers(data)
         setLoading(false)
       })
@@ -18,7 +22,17 @@ export default function Home() {
         console.error(err)
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    fetchDrivers()
   }, [])
+
+  const handleSave = (updatedGroup: DriverGroup) => {
+    setDrivers(prev => prev.map(g => 
+      g._id === updatedGroup._id ? updatedGroup : g
+    ))
+  }
 
   const filteredDrivers = drivers.filter(group => {
     const searchLower = search.toLowerCase()
@@ -51,21 +65,33 @@ export default function Home() {
       <div style={styles.grid}>
         {filteredDrivers.map((group) => (
           <div
-            key={group._id}
+            key={group._id.toString()}
             style={{
               ...styles.card,
               borderColor: group.enabled ? '#10b981' : '#ef4444'
             }}
-            onClick={() => setSelectedGroup(selectedGroup?._id === group._id ? null : group)}
           >
             <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>{group.groupName}</h3>
-              <span style={{
-                ...styles.badge,
-                backgroundColor: group.enabled ? '#10b981' : '#ef4444'
-              }}>
-                {group.enabled ? 'פעיל' : 'מושבת'}
-              </span>
+              <h3 
+                style={styles.cardTitle}
+                onClick={() => setSelectedGroup(selectedGroup?._id === group._id ? null : group)}
+              >
+                {group.groupName}
+              </h3>
+              <div style={styles.cardActions}>
+                <button
+                  onClick={() => setEditingGroup(group)}
+                  style={styles.editButton}
+                >
+                  <Pencil size={16} />
+                </button>
+                <span style={{
+                  ...styles.badge,
+                  backgroundColor: group.enabled ? '#10b981' : '#ef4444'
+                }}>
+                  {group.enabled ? 'פעיל' : 'מושבת'}
+                </span>
+              </div>
             </div>
             
             <p style={styles.notes}>{group.notes}</p>
@@ -74,7 +100,7 @@ export default function Home() {
               {group.drivers?.slice(0, 3).map((driver, i) => (
                 <span key={i} style={styles.driverTag}>{driver}</span>
               ))}
-              {group.drivers?.length > 3 && (
+              {group.drivers && group.drivers.length > 3 && (
                 <span style={styles.moreTag}>+{group.drivers.length - 3} עוד</span>
               )}
             </div>
@@ -95,11 +121,19 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {editingGroup && (
+        <EditDialog
+          group={editingGroup}
+          onClose={() => setEditingGroup(null)}
+          onSave={handleSave}
+        />
+      )}
     </div>
   )
 }
 
-const styles = {
+const styles: Record<string, CSSProperties> = {
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
@@ -132,6 +166,7 @@ const styles = {
     borderRadius: '8px',
     marginBottom: '20px',
     outline: 'none',
+    boxSizing: 'border-box',
   },
   loading: {
     display: 'flex',
@@ -151,7 +186,6 @@ const styles = {
     padding: '20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     border: '2px solid',
-    cursor: 'pointer',
     transition: 'transform 0.2s',
   },
   cardHeader: {
@@ -165,6 +199,23 @@ const styles = {
     fontWeight: 'bold',
     margin: 0,
     color: '#1f2937',
+    cursor: 'pointer',
+  },
+  cardActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  editButton: {
+    padding: '6px',
+    backgroundColor: '#dbeafe',
+    color: '#2563eb',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     color: 'white',
@@ -224,3 +275,4 @@ const styles = {
     textAlign: 'left',
   },
 }
+

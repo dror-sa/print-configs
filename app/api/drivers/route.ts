@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
+import { NextResponse } from 'next/server'
 
-const client = new MongoClient(process.env.MONGODB_URI)
+const client = new MongoClient(process.env.MONGODB_URI!)
 
 export async function GET() {
   try {
@@ -8,8 +9,12 @@ export async function GET() {
     const db = client.db('printers')
     const drivers = await db.collection('driverGroups').find({}).toArray()
     
-    return Response.json(drivers)
+    return NextResponse.json(drivers)
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: (error as Error).message }, 
+      { status: 500 }
+    )
   }
 }
+

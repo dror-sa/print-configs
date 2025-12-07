@@ -2,7 +2,8 @@ import { ObjectId } from 'mongodb'
 
 export interface MetadataRuleCondition {
   operator: 'equals' | 'notEquals' | 'lessThan' | 'greaterThan' | 'in'
-  value: number
+  value?: number
+  values?: number[]
 }
 
 export interface MetadataRule {

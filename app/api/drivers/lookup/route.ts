@@ -1,24 +1,8 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { DriverGroup, DriverLookupResult } from '../../../types'
 
 const client = new MongoClient(process.env.MONGODB_URI!)
-
-interface DriverGroup {
-  _id: string
-  groupId: string
-  groupName: string
-  enabled: boolean
-  drivers: string[]
-  dataSource: string
-  notes?: string
-  metadataRules: Record<string, unknown>
-}
-
-interface LookupResult {
-  driver: string
-  found: boolean
-  config: DriverGroup | null
-}
 
 export async function POST(request: Request) {
   try {
@@ -36,7 +20,7 @@ export async function POST(request: Request) {
     const db = client.db('printers')
     const collection = db.collection<DriverGroup>('driverGroups')
 
-    const results: LookupResult[] = []
+    const results: DriverLookupResult[] = []
 
     for (const driverName of drivers) {
       const group = await collection.findOne({

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { X, Save, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { EditDialogProps, RuleEditorProps, DriverGroup, MetadataRule, TabType } from '../types'
+import RuleWizard from './RuleWizard'
 import styles from './EditDialog.module.css'
 
 export default function EditDialog({ group, onClose, onSave }: EditDialogProps) {
@@ -9,6 +10,7 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
   const [activeTab, setActiveTab] = useState<TabType>('general')
   const [saving, setSaving] = useState<boolean>(false)
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({})
+  const [showWizard, setShowWizard] = useState<boolean>(false)
 
   useEffect(() => {
     setFormData(group)
@@ -64,11 +66,13 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
   }
 
   const addRule = () => {
-    const ruleName = prompt('שם הכלל החדש (באנגלית):')
-    if (ruleName) {
-      updateRule(ruleName, { offset: 0, type: 'byte' })
-      setExpandedRules(prev => ({ ...prev, [ruleName]: true }))
-    }
+    setShowWizard(true)
+  }
+  
+  const handleWizardComplete = (ruleName: string, ruleData: MetadataRule) => {
+    updateRule(ruleName, ruleData)
+    setExpandedRules(prev => ({ ...prev, [ruleName]: true }))
+    setShowWizard(false)
   }
 
   const deleteRule = (ruleName: string) => {
@@ -84,33 +88,34 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
   }
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog}>
-        {/* Header */}
-        <div className={styles.header}>
-          <h2 className={styles.headerTitle}>עריכת קבוצת דרייברים</h2>
-          <button onClick={onClose} className={styles.closeButton}>
-            <X size={24} />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className={styles.tabs}>
-          {(['general', 'drivers', 'rules'] as TabType[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-            >
-              {tab === 'general' && 'כללי'}
-              {tab === 'drivers' && 'דרייברים'}
-              {tab === 'rules' && 'חוקים'}
+    <>
+      <div className={styles.overlay}>
+        <div className={styles.dialog}>
+          {/* Header */}
+          <div className={styles.header}>
+            <h2 className={styles.headerTitle}>עריכת קבוצת דרייברים</h2>
+            <button onClick={onClose} className={styles.closeButton}>
+              <X size={24} />
             </button>
-          ))}
-        </div>
+          </div>
 
-        {/* Content */}
-        <div className={styles.content}>
+          {/* Tabs */}
+          <div className={styles.tabs}>
+            {(['general', 'drivers', 'rules'] as TabType[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+              >
+                {tab === 'general' && 'כללי'}
+                {tab === 'drivers' && 'דרייברים'}
+                {tab === 'rules' && 'חוקים'}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className={styles.content}>
           {/* General Tab */}
           {activeTab === 'general' && (
             <div className={styles.tabContent}>
@@ -257,6 +262,15 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
         </div>
       </div>
     </div>
+      
+      {/* Rule Wizard */}
+      {showWizard && (
+        <RuleWizard
+          onComplete={handleWizardComplete}
+          onCancel={() => setShowWizard(false)}
+        />
+      )}
+    </>
   )
 }
 

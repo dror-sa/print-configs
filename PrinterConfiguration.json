@@ -1,0 +1,771 @@
+{
+  "metadata": {
+    "configVersion": "1.0.0",
+    "engineVersion": "1.0.0",
+    "minimumEngineVersion": "1.0.0",
+    "createdAt": "2024-12-01T10:00:00Z",
+    "updatedAt": "2024-12-01T10:00:00Z",
+    "deploymentStage": "production",
+    "description": "Printer driver configuration for billing system"
+  },
+
+  "formatSignatures": {
+    "postscript": {
+      "signatures": [
+        "%!PS-Adobe",
+        "%!PS"
+      ],
+      "offset": 0,
+      "maxBytesToCheck": 100,
+      "description": "PostScript format"
+    },
+    "pcl": {
+      "signatures": [
+        "\\x1B%-12345X@PJL",
+        "\\x1BE"
+      ],
+      "offset": 0,
+      "maxBytesToCheck": 100,
+      "description": "PCL with PJL header"
+    },
+    "pjl": {
+      "signatures": [
+        "@PJL"
+      ],
+      "offset": 0,
+      "maxBytesToCheck": 50,
+      "description": "Pure PJL format"
+    },
+    "pdf": {
+      "signatures": [
+        "%PDF-"
+      ],
+      "offset": 0,
+      "maxBytesToCheck": 20,
+      "description": "PDF format"
+    },
+    "zip": {
+      "signatures": [
+        "PK\\x03\\x04"
+      ],
+      "offset": 0,
+      "maxBytesToCheck": 10,
+      "description": "ZIP archive"
+    }
+  },
+
+  "dataExtractionRules": {
+    "postscript": {
+      "pageCount": {
+        "method": "countPattern",
+        "pattern": "%%Page:",
+        "description": "Count DSC page comments"
+      },
+      "color": {
+        "method": "searchPatterns",
+        "patterns": [
+          {
+            "pattern": "/ProcessColorModel /DeviceCMYK",
+            "result": "color"
+          },
+          {
+            "pattern": "/ProcessColorModel /DeviceRGB",
+            "result": "color"
+          },
+          {
+            "pattern": "/ProcessColorModel /DeviceGray",
+            "result": "bw"
+          },
+          {
+            "pattern": "/ColorMode (Color)",
+            "result": "color"
+          },
+          {
+            "pattern": "/ColorMode (Gray)",
+            "result": "bw"
+          }
+        ],
+        "default": "color"
+      },
+      "pagesPerSheet": {
+        "method": "extractNumber",
+        "pattern": "/NUp (\\d+)",
+        "captureGroup": 1,
+        "default": 1
+      },
+      "duplex": {
+        "method": "searchPatterns",
+        "patterns": [
+          {
+            "pattern": "/Duplex true",
+            "result": true
+          },
+          {
+            "pattern": "/Tumble true",
+            "result": true
+          }
+        ],
+        "default": false
+      }
+    },
+    
+    "pcl": {
+      "pageCount": {
+        "method": "countBytes",
+        "byteValue": "\\x0C",
+        "description": "Count Form Feed characters"
+      },
+      "color": {
+        "method": "searchPJLCommand",
+        "command": "@PJL SET RENDERMODE",
+        "values": {
+          "COLOR": "color",
+          "GRAYSCALE": "bw",
+          "GRAY": "bw"
+        },
+        "default": "bw"
+      },
+      "copies": {
+        "method": "searchPJLCommand",
+        "command": "@PJL SET COPIES",
+        "type": "integer",
+        "default": 1
+      },
+      "pagesPerSheet": {
+        "method": "searchPJLCommand",
+        "command": "@PJL SET NUP",
+        "type": "integer",
+        "default": 1
+      }
+    },
+
+    "pdf": {
+      "pageCount": {
+        "method": "pdfPageCount",
+        "description": "Extract page count from PDF structure"
+      },
+      "color": {
+        "method": "pdfColorAnalysis",
+        "description": "Analyze PDF for color usage"
+      }
+    },
+
+    "zip": {
+      "action": "extractAndParse",
+      "description": "Extract ZIP and parse contents recursively"
+    }
+  },
+
+  "driverGroups": [
+    {
+      "groupId": "konica_c368_c658_pcl",
+      "groupName": "Konica Minolta C368/C658 Series PCL",
+      "enabled": true,
+      "drivers": [
+        "KONICA MINOLTA C368SeriesPCL",
+        "KONICA MINOLTA C658SeriesPCL",
+        "Generic 28C-8SeriesPCL"
+      ],
+      "dataSource": "metadata",
+      "notes": "גרפיקס חדש, מחשבת בש, ריינט",
+      "metadataRules": {
+        "pageSize": {
+          "offset": 264,
+          "type": "byte",
+          "condition": {
+            "operator": "lessThan",
+            "value": 100
+          }
+        },
+        "color": {
+          "offset": 4737,
+          "type": "byte",
+          "mapping": {
+            "0": "color",
+            "1": "bw",
+            "2": "twoColor"
+          }
+        },
+        "pagesPerSheet": {
+          "conditionalOffset": 2533,
+          "conditionalValue": 1,
+          "offset": 2534,
+          "type": "byte",
+          "mapping": {
+            "1": 2,
+            "2": 4,
+            "3": 6,
+            "4": 9,
+            "5": 16
+          },
+          "default": 1
+        },
+        "booklet": {
+          "offset": 3572,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 3
+          },
+          "result": true,
+          "default": false
+        }
+      }
+    },
+
+    {
+      "groupId": "brother_mfc_l_series",
+      "groupName": "Brother MFC-L Series",
+      "enabled": true,
+      "drivers": [
+        "Brother MFC-L8690CDW series",
+        "Brother MFC-L9570CDW series",
+        "Brother MFC-L2710DW series",
+        "Brother MFC-L2700DW series",
+        "Brother MFC-L8900CDW series",
+        "Brother MFC-L2685DW Printer",
+        "Brother MFC-L6900DW series",
+        "Brother HL-L8360CDW series"
+      ],
+      "dataSource": "metadata",
+      "notes": "תורה וחסד, דיסק אונקי, גודנט, שמור, עטיא סטאריק",
+      "metadataRules": {
+        "pagesPerSheet": {
+          "conditionalOffset": 269,
+          "conditionalValue": 0,
+          "offset": 268,
+          "type": "byte",
+          "default": 1
+        },
+        "booklet": {
+          "offset": 62,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 3
+          },
+          "result": true,
+          "default": false
+        }
+      }
+    },
+
+    {
+      "groupId": "brother_hl_l6210",
+      "groupName": "Brother HL-L6210/MFC-L5750 Series",
+      "enabled": true,
+      "drivers": [
+        "Brother HL-L6210DW series",
+        "Brother MFC-L5750DW series"
+      ],
+      "dataSource": "metadata",
+      "notes": "Brooklyn kiosk, הר יונה - ללא צבע",
+      "metadataRules": {
+        "color": {
+          "hardcoded": false
+        },
+        "pagesPerSheet": {
+          "conditionalOffset": 269,
+          "conditionalValue": 0,
+          "offset": 268,
+          "type": "byte",
+          "default": 1
+        },
+        "booklet": {
+          "offset": 62,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 3
+          },
+          "result": true,
+          "default": false
+        }
+      }
+    },
+
+    {
+      "groupId": "hp_laserjet_m527_m227",
+      "groupName": "HP LaserJet MFP M527/M227 Series",
+      "enabled": true,
+      "drivers": [
+        "HP LaserJet flow MFP M525 PCL 6",
+        "HP LaserJet MFP M527 PCL 6",
+        "HP LaserJet MFP M227-M231 PCL-6 (V4)"
+      ],
+      "dataSource": "metadata",
+      "notes": "אנטר אשדוד, שמור",
+      "metadataRules": {
+        "color": {
+          "hardcoded": false
+        },
+        "booklet": {
+          "offset": 62,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 3
+          },
+          "result": true,
+          "default": false
+        },
+        "pagesPerSheet": {
+          "offset": 238,
+          "type": "byte",
+          "mapping": {
+            "0": 1,
+            "1": 2,
+            "2": 4,
+            "3": 6,
+            "4": 9,
+            "5": 16
+          },
+          "default": 1,
+          "condition": {
+            "checkOffset": 62,
+            "checkOperator": "notEquals",
+            "checkValue": 3
+          }
+        }
+      }
+    },
+
+    {
+      "groupId": "hp_laserjet_m428_m429",
+      "groupName": "HP LaserJet Pro M428-M429 Series",
+      "enabled": true,
+      "drivers": [
+        "HP LaserJet Pro M428f-M429f PCL-6 (V4)",
+        "HP LaserJet Pro M428-M429 PCL 6 (V3)",
+        "HP LaserJet Pro M428f-M429f PCL 6 (V3)",
+        "HP LaserJet Pro MFP M426-M427 PCL 6",
+        "HP LaserJet Pro MFP M426f-M427f PCL 6",
+        "HP LaserJet M604 PCL 6",
+        "HP LaserJet M607 M608 M609 PCL 6 (V3)",
+        "HP LaserJet Pro M402-M403 PCL 6"
+      ],
+      "dataSource": "metadata",
+      "notes": "שמש נשים, שטיבלנט",
+      "metadataRules": {
+        "color": {
+          "hardcoded": false
+        },
+        "booklet": {
+          "offset": 332,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 1
+          },
+          "result": true,
+          "default": false
+        },
+        "pagesPerSheet": {
+          "offset": 336,
+          "type": "byte",
+          "default": 1,
+          "condition": {
+            "checkOffset": 332,
+            "checkOperator": "notEquals",
+            "checkValue": 1
+          }
+        }
+      }
+    },
+
+    {
+      "groupId": "canon_generic_plus_ufr2",
+      "groupName": "Canon Generic Plus UFR II",
+      "enabled": true,
+      "drivers": [
+        "Canon Generic Plus UFR II"
+      ],
+      "dataSource": "metadata",
+      "notes": "שמש, המדפיס - יש offset משתנה",
+      "metadataRules": {
+        "offsetDetection": {
+          "checkOffset": 1115,
+          "checkValues": [75, 73],
+          "offsetAdjustment": 12,
+          "description": "If byte 1115 is 0x4B or 0x49, add 12 to all offsets"
+        },
+        "preDocument": {
+          "offset": 1103,
+          "offsetVariable": true,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 75
+          },
+          "result": true
+        },
+        "pagesPerSheet": {
+          "conditionalOffset": 1114,
+          "offsetVariable": true,
+          "conditionalOperator": "notEquals",
+          "conditionalValue": 0,
+          "offset": 1196,
+          "offsetVariable": true,
+          "type": "byte",
+          "mapping": {
+            "0": 2,
+            "1": 4,
+            "3": 8,
+            "4": 9,
+            "5": 16
+          },
+          "default": 1,
+          "excludeStores": ["442"]
+        },
+        "bookletSecondJob": {
+          "offset": 68,
+          "offsetVariable": true,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 1
+          },
+          "action": "setPagesPerSheetTo1"
+        }
+      }
+    },
+
+    {
+      "groupId": "kyocera_taskalfa_3051ci",
+      "groupName": "Kyocera TASKalfa 3051ci KX",
+      "enabled": true,
+      "drivers": [
+        "Kyocera TASKalfa 3051ci KX",
+        "Kyocera TASKalfa 3051ci v4 KX (XPS)",
+        "Kyocera TASKalfa 4551ci KX"
+      ],
+      "dataSource": "metadata",
+      "notes": "קונטרול, ריינט חיפה",
+      "metadataRules": {
+        "pageSize": {
+          "offset": 532,
+          "type": "byte",
+          "mapping": {
+            "10": 11
+          },
+          "description": "Fix A5 detection"
+        },
+        "pagesPerSheet": {
+          "offset": 656,
+          "type": "byte",
+          "default": 1
+        },
+        "booklet": {
+          "offset": 224,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 3
+          },
+          "result": true,
+          "default": false
+        },
+        "bookletPDFReaderFix": {
+          "description": "Fix booklet detection via PDF reader",
+          "condition": {
+            "checkOffset": 62,
+            "checkOperator": "equals",
+            "checkValue": 3,
+            "andOffset": 224,
+            "andOperator": "equals",
+            "andValue": 3
+          },
+          "action": {
+            "setBooklet": false,
+            "setPagesPerSheet": 1
+          }
+        },
+        "tray": {
+          "offset": 56,
+          "type": "byte",
+          "mapping": {
+            "14": 1,
+            "3": 2,
+            "2": 3,
+            "1": 4
+          }
+        }
+      }
+    },
+
+    {
+      "groupId": "kyocera_ecosys_m5526",
+      "groupName": "Kyocera ECOSYS M5526/M6530 Series",
+      "enabled": true,
+      "drivers": [
+        "Kyocera ECOSYS M6530cdn KX",
+        "Kyocera ECOSYS M2540dn KX",
+        "Olivetti d-COLOR MF2624 KX",
+        "Kyocera ECOSYS M5521cdn KX",
+        "Kyocera ECOSYS M5526cdn KX"
+      ],
+      "dataSource": "metadata",
+      "notes": "אופקנט, CIP, חושב",
+      "metadataRules": {
+        "color": {
+          "offset": 564,
+          "type": "byte",
+          "mapping": {
+            "0": "color",
+            "2": "bw"
+          },
+          "default": "color"
+        },
+        "pagesPerSheet": {
+          "offset": 656,
+          "type": "byte",
+          "default": 1
+        },
+        "booklet": {
+          "offset": 224,
+          "type": "byte",
+          "condition": {
+            "operator": "in",
+            "values": [3, 7]
+          },
+          "result": true,
+          "action": {
+            "setPagesPerSheet": 1
+          }
+        }
+      }
+    },
+
+    {
+      "groupId": "epson_wf_c579r_series",
+      "groupName": "EPSON WF-C579R/M5799 Series",
+      "enabled": true,
+      "drivers": [
+        "EPSON L11160 Series",
+        "EPSON WF-C5790 Series",
+        "EPSON WF-M5799 Series",
+        "EPSON WF-C579R Series"
+      ],
+      "dataSource": "metadata",
+      "notes": "מחשבת בש, זעפרני, שטיבלנט, פישר גן הדסים",
+      "metadataRules": {
+        "poster": {
+          "offset": 1476,
+          "type": "byte",
+          "mapping": {
+            "252": 2,
+            "255": 4,
+            "254": 9,
+            "253": 16
+          },
+          "action": "multiplyPageCount",
+          "description": "Poster mode - divide one page to many"
+        },
+        "pagesPerSheet": {
+          "offset": 1472,
+          "type": "byte",
+          "mapping": {
+            "0": 1,
+            "2": 2,
+            "4": 4,
+            "6": 6,
+            "8": 8,
+            "9": 9,
+            "16": 16
+          },
+          "default": 1,
+          "condition": {
+            "checkOffset": 1476,
+            "checkOperator": "equals",
+            "checkValue": 0
+          }
+        },
+        "tray": {
+          "offset": 56,
+          "type": "byte",
+          "description": "5 is back tray"
+        },
+        "booklet": {
+          "offset": 1446,
+          "type": "byte",
+          "condition": {
+            "operator": "in",
+            "values": [1, 3]
+          },
+          "result": true
+        }
+      }
+    },
+
+    {
+      "groupId": "xerox_workcentre_3025",
+      "groupName": "Xerox WorkCentre 3025/3215 Series",
+      "enabled": true,
+      "drivers": [
+        "Xerox B215 Multifunction Printer",
+        "Xerox WorkCentre 3025",
+        "Xerox WorkCentre 3025 XPS",
+        "Xerox WorkCentre 3215",
+        "Xerox WorkCentre 3215 XPS",
+        "Samsung Universal Print Driver 3",
+        "Samsung Universal Print Driver 3 XPS"
+      ],
+      "dataSource": "metadata",
+      "notes": "סייפטי נט",
+      "metadataRules": {
+        "color": {
+          "hardcoded": false
+        },
+        "booklet": {
+          "offset": 804,
+          "type": "byte",
+          "condition": {
+            "operator": "notEquals",
+            "value": 0
+          },
+          "result": true,
+          "action": {
+            "setPagesPerSheet": 2
+          }
+        },
+        "pagesPerSheet": {
+          "offset": 252,
+          "type": "byte",
+          "mapping": {
+            "0": 1,
+            "1": 2,
+            "2": 4,
+            "3": 6,
+            "4": 9,
+            "5": 16
+          },
+          "default": 1,
+          "condition": {
+            "checkOffset": 804,
+            "checkOperator": "equals",
+            "checkValue": 0
+          }
+        }
+      }
+    },
+
+    {
+      "groupId": "konica_universal_pcl",
+      "groupName": "KONICA MINOLTA Universal PCL",
+      "enabled": true,
+      "drivers": [
+        "KONICA MINOLTA Universal PCL v3.9",
+        "KONICA MINOLTA Universal PCL"
+      ],
+      "dataSource": "metadata",
+      "notes": "משרדנט, קו נקי, ריינט בש",
+      "metadataRules": {
+        "pageSize": {
+          "offset": 272,
+          "type": "byte",
+          "condition": {
+            "operator": "lessThan",
+            "value": 100
+          }
+        },
+        "color": {
+          "offset": 4321,
+          "type": "byte",
+          "mapping": {
+            "0": "color"
+          },
+          "default": "bw"
+        },
+        "pagesPerSheet": {
+          "conditionalOffset": 2123,
+          "conditionalValue": 1,
+          "offset": 2124,
+          "type": "byte",
+          "mapping": {
+            "1": 2,
+            "2": 4,
+            "3": 6,
+            "4": 9,
+            "5": 16
+          },
+          "default": 1
+        },
+        "booklet": {
+          "offset": 3156,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 3
+          },
+          "result": true,
+          "action": {
+            "setPagesPerSheet": 2
+          }
+        }
+      }
+    },
+
+    {
+      "groupId": "postscript_printers",
+      "groupName": "PostScript Compatible Printers",
+      "enabled": true,
+      "drivers": [
+        "*PS*",
+        "*PostScript*",
+        "Brother MFC-L2980DW"
+      ],
+      "dataSource": "data",
+      "notes": "Generic PostScript printers",
+      "dataParser": {
+        "type": "auto-detect",
+        "preferredFormat": "postscript",
+        "fallbackFormats": ["pcl", "pdf"]
+      }
+    },
+
+    {
+      "groupId": "canon_generic_plus_pcl6",
+      "groupName": "Canon Generic Plus PCL6",
+      "enabled": true,
+      "drivers": [
+        "Canon Generic Plus PCL6 V150"
+      ],
+      "dataSource": "metadata",
+      "notes": "ספייס אשדוד",
+      "metadataRules": {
+        "preDocument": {
+          "offset": 1181,
+          "type": "byte",
+          "condition": {
+            "operator": "equals",
+            "value": 75
+          },
+          "result": true
+        }
+      }
+    },
+
+    {
+      "groupId": "photo_printers",
+      "groupName": "Photo Printers",
+      "enabled": true,
+      "drivers": [
+        "DP-DS620"
+      ],
+      "dataSource": "metadata",
+      "notes": "מדפסת פוטו גרפיקס - shared printer",
+      "metadataRules": {
+        "sharedPrinter": {
+          "hardcoded": true
+        }
+      }
+    }
+  ],
+
+  "defaultFallback": {
+    "dataSource": "metadata",
+    "markAsUnsupported": true,
+    "logToServer": true,
+    "behavior": "allowPrintingButWarn"
+  }
+}

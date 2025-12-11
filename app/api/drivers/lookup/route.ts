@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { DriverGroup, DriverLookupResult } from '../../../types'
+import * as js2xmlparser from 'js2xmlparser'
 
 const client = new MongoClient(process.env.MONGODB_URI!)
 
@@ -10,10 +11,11 @@ export async function POST(request: Request) {
     const drivers: string[] = body.drivers
 
     if (!Array.isArray(drivers)) {
-      return NextResponse.json(
-        { error: 'drivers must be an array of strings' },
-        { status: 400 }
-      )
+      const xmlError = js2xmlparser.parse('Error', { message: 'drivers must be an array of strings' })
+      return new NextResponse(xmlError, {
+        status: 400,
+        headers: { 'Content-Type': 'application/xml' }
+      })
     }
 
     await client.connect()
@@ -35,11 +37,15 @@ export async function POST(request: Request) {
       })
     }
 
-    return NextResponse.json(results)
+    const xml = js2xmlparser.parse('DriverLookupResults', { Driver: results })
+    return new NextResponse(xml, {
+      headers: { 'Content-Type': 'application/xml' }
+    })
   } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 500 }
-    )
+    const xmlError = js2xmlparser.parse('Error', { message: (error as Error).message })
+    return new NextResponse(xmlError, {
+      status: 500,
+      headers: { 'Content-Type': 'application/xml' }
+    })
   }
 }

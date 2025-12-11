@@ -384,7 +384,7 @@ function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
           <div className={styles.formGroup}>
             <label className={styles.labelSmall}>אופרטור</label>
             <select
-              value={ruleData.condition.operator || 'equals'}
+              value={(ruleData.condition as any).operator || 'equals'}
               onChange={(e) => updateCondition('operator', e.target.value)}
               className={styles.inputSmall}
             >
@@ -396,13 +396,13 @@ function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
             </select>
           </div>
           
-          {ruleData.condition.operator === 'in' ? (
+          {(ruleData.condition as any).operator === 'in' ? (
             <div className={styles.formGroup}>
               <div className={styles.driversHeader}>
                 <label className={styles.labelSmall}>ערכים</label>
                 <button 
                   onClick={() => {
-                    const values = ruleData.condition?.values || []
+                    const values = (ruleData.condition as any)?.values || []
                     updateCondition('values', [...values, 0])
                   }}
                   className={styles.addSmallButton}
@@ -411,13 +411,13 @@ function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
                   <Plus size={14} />
                 </button>
               </div>
-              {(ruleData.condition.values || []).map((val, idx) => (
+              {((ruleData.condition as any).values || []).map((val: any, idx: number) => (
                 <div key={idx} className={styles.mappingRow}>
                   <input
                     type="number"
                     value={val}
                     onChange={(e) => {
-                      const newValues = [...(ruleData.condition?.values || [])]
+                      const newValues = [...((ruleData.condition as any)?.values || [])]
                       newValues[idx] = parseInt(e.target.value) || 0
                       updateCondition('values', newValues)
                     }}
@@ -426,7 +426,7 @@ function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
                   />
                   <button
                     onClick={() => {
-                      const newValues = (ruleData.condition?.values || []).filter((_, i) => i !== idx)
+                      const newValues = ((ruleData.condition as any)?.values || []).filter((_: any, i: number) => i !== idx)
                       updateCondition('values', newValues)
                     }}
                     className={styles.mappingDelete}
@@ -442,7 +442,7 @@ function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
               <label className={styles.labelSmall}>ערך</label>
               <input
                 type="number"
-                value={ruleData.condition.value || 0}
+                value={(ruleData.condition as any).value || 0}
                 onChange={(e) => updateCondition('value', parseInt(e.target.value))}
                 className={styles.inputSmall}
               />
@@ -492,7 +492,7 @@ function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
           <label className={styles.labelSmall}>ברירת מחדל</label>
           <input
             type="text"
-            value={ruleData.default}
+            value={ruleData.default as string}
             onChange={(e) => updateRuleField('default', isNaN(Number(e.target.value)) ? e.target.value : parseInt(e.target.value))}
             className={styles.inputSmall}
           />

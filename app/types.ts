@@ -34,6 +34,13 @@ export interface MetadataRule {
   description?: string
 }
 
+// ✅ הוספתי interface חדש עבור driverSettings
+export interface DriverSetting {
+  driverName: string
+  takeCopiesFromData: boolean
+  notes?: string
+}
+
 export interface DriverGroup {
   _id: string | ObjectId
   groupId: string
@@ -42,14 +49,21 @@ export interface DriverGroup {
   dataSource: 'metadata' | 'data'
   enabled: boolean
   drivers: string[]
-  metadataRules: Record<string, MetadataRule>
+  
+  // ✅ עבור dataSource: 'metadata'
+  metadataRules?: Record<string, MetadataRule>
+  
+  // ✅ עבור dataSource: 'data' - הוספתי את זה
+  driverSettings?: DriverSetting[]
 }
 
 // Response type for the lookup API
 export interface DriverLookupResult {
   driver: string
   found: boolean
-  config: DriverGroup | null
+  config?: Omit<DriverGroup, '_id'> & {
+    drivers: string  // ✅ במקום array, זה string יחיד ב-XML
+  }
 }
 
 // Props interfaces

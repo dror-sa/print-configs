@@ -12,6 +12,20 @@ const handler = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
   ],
+  // תיקון עבור Cloudflare ו-Vercel: שימוש בעוגיות מאובטחות גם מאחורי Proxy
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true
+      }
+    }
+  },
+  // נותן ל-NextAuth להבין שהוא רץ מאחורי פרוקסי
+  useSecureCookies: true, 
 })
 
 export { handler as GET, handler as POST }

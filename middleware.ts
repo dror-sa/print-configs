@@ -5,6 +5,8 @@ import type { NextRequest } from "next/server"
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  console.log(`[Middleware] Path: ${pathname}`)
+
   // 1. נתיבים ציבוריים שתמיד מותרים
   if (
     pathname.startsWith("/_next") || // קבצי מערכת
@@ -12,16 +14,23 @@ export async function middleware(request: NextRequest) {
     pathname === "/login" || // דף הכניסה
     pathname === "/favicon.ico" // אייקון
   ) {
+    console.log(`[Middleware] Skipping auth check for public path: ${pathname}`)
     return NextResponse.next()
   }
 
   // 2. בדיקה אם המשתמש מחובר
-  const token = await getToken({ req: request })
+  // אנחנו מעבירים את ה-secret במפורש ליתר ביטחון
+  const token = await getToken({ 
+    req: request, 
+    secret: process.env.NEXTAUTH_SECRET 
+  })
+
+  console.log(`[Middleware] Token status for ${pathname}:`, token ? "Found" : "Missing")
 
   // 3. אם לא מחובר - הפניה לדף הכניסה
   if (!token) {
+    console.log(`[Middleware] Redirecting to login from: ${pathname}`)
     const url = new URL("/login", request.url)
-    // שומרים את הדף המקורי כדי לחזור אליו אחרי הכניסה
     url.searchParams.set("callbackUrl", encodeURI(request.url))
     return NextResponse.redirect(url)
   }
@@ -31,6 +40,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // חייבים matcher כדי שה-middleware ירוץ
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 }

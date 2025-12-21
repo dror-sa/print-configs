@@ -1,7 +1,18 @@
-export { default } from "next-auth/middleware"
+import { withAuth } from "next-auth/middleware"
+
+export default withAuth({
+  callbacks: {
+    authorized: ({ token }) => !!token,
+  },
+})
 
 export const config = {
-  // Protect all routes except static files and auth api
-  matcher: ["/((?!api/auth|favicon.ico).*)"],
+  // Protects all routes, including api/trpc routes
+  // Please edit this to allow other routes to be public as needed.
+  // We exclude:
+  // - api/auth (NextAuth routes)
+  // - _next/static (static files)
+  // - _next/image (image optimization files)
+  // - favicon.ico (favicon file)
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
 }
-

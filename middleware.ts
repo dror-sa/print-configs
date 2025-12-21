@@ -12,14 +12,14 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next") || // קבצי מערכת
     pathname.startsWith("/api/auth") || // נתיבי אימות
     pathname === "/login" || // דף הכניסה
-    pathname === "/favicon.ico" // אייקון
+    pathname === "/favicon.ico" || // אייקון
+    pathname.startsWith("/api/drivers/lookup") // <--- הוספנו את הנתיב הזה
   ) {
     console.log(`[Middleware] Skipping auth check for public path: ${pathname}`)
     return NextResponse.next()
   }
 
   // 2. בדיקה אם המשתמש מחובר
-  // אנחנו מעבירים את ה-secret במפורש ליתר ביטחון
   const token = await getToken({ 
     req: request, 
     secret: process.env.NEXTAUTH_SECRET 

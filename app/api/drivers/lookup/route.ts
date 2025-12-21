@@ -1,152 +1,128 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { DriverGroup, DriverLookupResult, DriverSetting } from '../../../types'
 import * as js2xmlparser from 'js2xmlparser'
 
 const client = new MongoClient(process.env.MONGODB_URI!)
 
-// פונקציה לניקוי והמרת הנתונים ל-XML
-function prepareForXml(obj: any): any {
-  if (obj === null || obj === undefined) return obj
+// ══════════════════════════════════════════════════════════════
+// TYPES
+// ══════════════════════════════════════════════════════════════
 
-  if (Array.isArray(obj)) {
-    return obj.map(prepareForXml)
-  }
-
-  if (typeof obj === 'object') {
-    const newObj: any = {}
-
-    for (const [key, value] of Object.entries(obj)) {
-      // מוחק _id של MongoDB
-      if (key === '_id') continue
-
-      // ✅ driverSettings: תמיד יוצא כ-<driverSettings><setting>...</setting></driverSettings>
-      if (key === 'driverSettings') {
-        if (Array.isArray(value)) {
-          newObj[key] = { setting: value.map(prepareForXml) }
-        } else if (value && typeof value === 'object') {
-          // תמיכה לאחור למבנה הישן (אם קיים בטעות)
-          newObj[key] = {
-            setting: Object.entries(value).map(([driverName, settings]: any) => ({
-              driverName,
-              ...prepareForXml(settings)
-            }))
-          }
-        } else {
-          // אם אין הגדרות או הערך ריק
-           newObj[key] = undefined
-        }
-        continue
-      }
-
-      // ממיר mapping object למערך
-      if (key === 'mapping' && typeof value === 'object' && !Array.isArray(value)) {
-        newObj[key] = {
-          item: Object.entries(value || {}).map(([k, v]: [any, any]) => ({
-            key: k,
-            value: v
-          }))
-        }
-        continue
-      }
-
-      newObj[key] = prepareForXml(value)
-    }
-
-    return newObj
-  }
-
-  return obj
+interface DriverGroup {
+  groupId: string
+  groupName: string
+  enabled: boolean
+  drivers: string[]
+  dataSource: 'metadata' | 'data'
+  notes?: string
+  metadataRules?: Record<string, any>
+  driverSettings?: Array<{
+    driverName: string
+    takeCopiesFromData?: boolean
+    notes?: string
+  }>
 }
+
+// ══════════════════════════════════════════════════════════════
+// CONVERT TO XML FORMAT
+// ══════════════════════════════════════════════════════════════
+
+function toXmlFormat(group: DriverGroup, requestedDriver: string): any {
+  const result: any = {
+    groupId: group.groupId,
+    groupName: group.groupName,
+    drivers: requestedDriver,
+    enabled: group.enabled,
+    dataSource: group.dataSource,
+    notes: group.notes
+  }
+
+  // Metadata Rules - convert mapping objects to item arrays
+  if (group.metadataRules) {
+    result.metadataRules = {}
+    for (const [name, rule] of Object.entries(group.metadataRules)) {
+      result.metadataRules[name] = convertMappings(rule)
+    }
+  }
+
+  // Driver Settings - filter for requested driver only
+  if (group.driverSettings?.length) {
+    const settings = group.driverSettings.filter(s => s.driverName === requestedDriver)
+    if (settings.length) {
+      result.driverSettings = { setting: settings }
+    }
+  }
+
+  return result
+}
+
+function convertMappings(rule: any): any {
+  if (!rule || typeof rule !== 'object') return rule
+
+  const converted = { ...rule }
+
+  // mapping: { "0": "color" } → { item: [{ key: "0", value: "color" }] }
+  if (rule.mapping && typeof rule.mapping === 'object' && !Array.isArray(rule.mapping)) {
+    converted.mapping = {
+      item: Object.entries(rule.mapping).map(([key, value]) => ({
+        key,
+        value: String(value)
+      }))
+    }
+  }
+
+  return converted
+}
+
+// ══════════════════════════════════════════════════════════════
+// API HANDLERS
+// ══════════════════════════════════════════════════════════════
 
 export async function GET() {
   try {
     await client.connect()
-    const db = client.db('printers')
-    const collection = db.collection<DriverGroup>('driverGroups')
-
-    const allDrivers = await collection.distinct('drivers')
-
-    return NextResponse.json({ 
-      count: allDrivers.length,
-      drivers: allDrivers 
-    })
-
+    const collection = client.db('printers').collection<DriverGroup>('driverGroups')
+    const drivers = await collection.distinct('drivers')
+    return NextResponse.json({ count: drivers.length, drivers })
   } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const drivers: string[] = body.drivers
+    const { drivers } = await request.json()
 
     if (!Array.isArray(drivers)) {
-      const xmlError = js2xmlparser.parse('Error', { 
-        message: 'drivers must be an array of strings' 
-      })
-      return new NextResponse(xmlError, {
-        status: 400,
-        headers: { 'Content-Type': 'application/xml; charset=utf-8' }
-      })
+      return xmlResponse({ Error: { message: 'drivers must be an array' } }, 400)
     }
 
     await client.connect()
-    const db = client.db('printers')
-    const collection = db.collection<DriverGroup>('driverGroups')
+    const collection = client.db('printers').collection<DriverGroup>('driverGroups')
 
-    const results: DriverLookupResult[] = []
-
-    for (const driverName of drivers) {
-      const group = await collection.findOne({
-        drivers: driverName,
-        enabled: true
-      })
-
-      let configForXml: any = undefined
-
-      if (group) {
-        configForXml = {
-          ...group,
-          drivers: driverName // מחזיר רק את שם הדרייבר הספציפי כשדה בודד
+    const results = await Promise.all(
+      drivers.map(async (driverName: string) => {
+        const group = await collection.findOne({ drivers: driverName, enabled: true })
+        return {
+          driver: driverName,
+          found: !!group,
+          config: group ? toXmlFormat(group, driverName) : undefined
         }
-
-        // אם יש הגדרות דרייברים (במבנה החדש כמערך), נסנן רק את הרלוונטי לדרייבר הנוכחי
-        if (configForXml.dataSource === 'data' && Array.isArray(configForXml.driverSettings)) {
-          configForXml.driverSettings = (configForXml.driverSettings as DriverSetting[]).filter(
-            s => s.driverName === driverName
-          )
-        }
-      }
-
-      results.push({
-        driver: driverName,
-        found: !!group,
-        config: group ? prepareForXml(configForXml) : undefined
       })
-    }
-
-    const xml = js2xmlparser.parse('DriverLookupResults', 
-      { Driver: results },
-      { 
-        declaration: { encoding: 'UTF-8' }
-      }
     )
-    
-    return new NextResponse(xml, {
-      headers: { 'Content-Type': 'application/xml; charset=utf-8' }
-    })
+
+    return xmlResponse({ Driver: results })
   } catch (error) {
-    const xmlError = js2xmlparser.parse('Error', { 
-      message: (error as Error).message 
-    })
-    return new NextResponse(xmlError, {
-      status: 500,
-      headers: { 'Content-Type': 'application/xml; charset=utf-8' }
-    })
+    return xmlResponse({ Error: { message: (error as Error).message } }, 500)
   }
+}
+
+function xmlResponse(data: any, status = 200) {
+  const xml = js2xmlparser.parse('DriverLookupResults', data, {
+    declaration: { encoding: 'UTF-8' }
+  })
+  return new NextResponse(xml, {
+    status,
+    headers: { 'Content-Type': 'application/xml; charset=utf-8' }
+  })
 }

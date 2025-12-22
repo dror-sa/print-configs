@@ -41,6 +41,13 @@ export interface DriverSetting {
   notes?: string
 }
 
+export interface HistoryItem {
+  version: number
+  changeReason: string
+  savedAt: string
+  snapshot: Omit<DriverGroup, 'history'>
+}
+
 export interface DriverGroup {
   _id: string | ObjectId
   groupId: string
@@ -49,6 +56,8 @@ export interface DriverGroup {
   dataSource: 'metadata' | 'data'
   enabled: boolean
   drivers: string[]
+  version?: number
+  history?: HistoryItem[]
   
   // ✅ עבור dataSource: 'metadata'
   metadataRules?: Record<string, MetadataRule>
@@ -79,4 +88,4 @@ export interface RuleEditorProps {
   onChange: (newData: MetadataRule) => void
 }
 
-export type TabType = 'general' | 'drivers' | 'rules'
+export type TabType = 'general' | 'drivers' | 'rules' | 'history'

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { X, Save, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
-import { EditDialogProps, RuleEditorProps, DriverGroup, MetadataRule, TabType } from '../types'
+import { EditDialogProps, RuleEditorProps, DriverGroup, MetadataRule, TabType, HistoryItem } from '../types'
 import RuleWizard from './RuleWizard'
 import styles from './EditDialog.module.css'
 
@@ -11,6 +11,8 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
   const [saving, setSaving] = useState<boolean>(false)
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({})
   const [showWizard, setShowWizard] = useState<boolean>(false)
+  const [changeReason, setChangeReason] = useState<string>('')
+  const [selectedSnapshot, setSelectedSnapshot] = useState<HistoryItem | null>(null)
 
   useEffect(() => {
     setFormData(group)
@@ -22,7 +24,10 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
       const res = await fetch(`/api/drivers/${group._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          _changeReason: changeReason || 'עדכון'
+        })
       })
       if (res.ok) {
         onSave(formData)
@@ -35,7 +40,6 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
     }
     setSaving(false)
   }
-
   const updateField = <K extends keyof DriverGroup>(field: K, value: DriverGroup[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -101,7 +105,7 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
 
           {/* Tabs */}
           <div className={styles.tabs}>
-            {(['general', 'drivers', 'rules'] as TabType[]).map(tab => (
+            {(['general', 'drivers', 'rules', 'history'] as TabType[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -110,6 +114,7 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
                 {tab === 'general' && 'כללי'}
                 {tab === 'drivers' && 'דרייברים'}
                 {tab === 'rules' && 'חוקים'}
+                {tab === 'history' && 'היסטוריה'}
               </button>
             ))}
           </div>
@@ -248,10 +253,66 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
               ))}
             </div>
           )}
+
+          {/* History Tab */}
+          {activeTab === 'history' && (
+            <div className={styles.tabContent}>
+              <div className={styles.historyHeader}>
+                <span>גרסה נוכחית: {formData.version || 1}</span>
+                <span>{(formData.history || []).length} גרסאות קודמות</span>
+              </div>
+              
+              {(!formData.history || formData.history.length === 0) ? (
+                <div className={styles.emptyHistory}>
+                  אין היסטוריה עדיין
+                </div>
+              ) : (
+                <div className={styles.historyList}>
+                  {[...formData.history].reverse().map((item, index) => (
+                    <div key={index} className={styles.historyItem}>
+                      <div className={styles.historyItemHeader}>
+                        <span className={styles.historyVersion}>גרסה {item.version}</span>
+                        <span className={styles.historyDate}>
+                          {new Date(item.savedAt).toLocaleString('he-IL')}
+                        </span>
+                      </div>
+                      <div className={styles.historyReason}>{item.changeReason}</div>
+                      <div className={styles.historyActions}>
+                        <button 
+                          onClick={() => setSelectedSnapshot(
+                            selectedSnapshot?.version === item.version ? null : item
+                          )}
+                          className={styles.historyViewButton}
+                        >
+                          {selectedSnapshot?.version === item.version ? 'הסתר' : 'הצג מצב'}
+                        </button>
+                      </div>
+                      
+                      {selectedSnapshot?.version === item.version && (
+                        <div className={styles.snapshotView}>
+                          <pre className={styles.snapshotCode}>
+                            {JSON.stringify(item.snapshot, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className={styles.footer}>
+          <input
+            type="text"
+            placeholder="סיבת השינוי (אופציונלי)..."
+            value={changeReason}
+            onChange={(e) => setChangeReason(e.target.value)}
+            className={styles.input}
+            style={{ flex: 1, marginLeft: '10px' }}
+          />
           <button onClick={onClose} className={styles.cancelButton}>
             ביטול
           </button>
@@ -260,8 +321,8 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
             {saving ? 'שומר...' : 'שמור שינויים'}
           </button>
         </div>
+        </div>
       </div>
-    </div>
       
       {/* Rule Wizard */}
       {showWizard && (
@@ -275,7 +336,7 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
 }
 
 function RuleEditor({ ruleName, ruleData, onChange }: RuleEditorProps) {
-  const updateRuleField = <K extends keyof MetadataRule>(field: K, value: MetadataRule[K]) => {
+  const updateRuleField = <K extends keyof MetadataRule,>(field: K, value: MetadataRule[K]) => {
     onChange({ ...ruleData, [field]: value })
   }
 

@@ -3,11 +3,17 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, host } = request.nextUrl // הוספנו את host
 
-  console.log(`[Middleware] Path: ${pathname}`)
+  console.log(`[Middleware] Path: ${pathname}, Host: ${host}`)
 
-  // 1. נתיבים ציבוריים שתמיד מותרים
+  // 1. החרגה עבור localhost - מאפשר עבודה מקומית ללא אימות
+  if (host.includes("localhost")) {
+    console.log(`[Middleware] Skipping auth check for localhost`)
+    return NextResponse.next()
+  }
+
+  // 2. נתיבים ציבוריים שתמיד מותרים
   if (
     pathname.startsWith("/_next") || // קבצי מערכת
     pathname.startsWith("/api/auth") || // נתיבי אימות
@@ -19,7 +25,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2. בדיקה אם המשתמש מחובר
+  // 3. בדיקה אם המשתמש מחובר
   const token = await getToken({ 
     req: request, 
     secret: process.env.NEXTAUTH_SECRET 
@@ -27,7 +33,7 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[Middleware] Token status for ${pathname}:`, token ? "Found" : "Missing")
 
-  // 3. אם לא מחובר - הפניה לדף הכניסה
+  // 4. אם לא מחובר - הפניה לדף הכניסה
   if (!token) {
     console.log(`[Middleware] Redirecting to login from: ${pathname}`)
     const url = new URL("/login", request.url)
@@ -35,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 4. אם מחובר - המשך כרגיל
+  // 5. אם מחובר - המשך כרגיל
   return NextResponse.next()
 }
 

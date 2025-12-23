@@ -12,7 +12,7 @@ interface DriverGroup {
   groupId: string
   groupName: string
   enabled: boolean
-  drivers: string[]
+  drivers: Array<{ name: string; enabled: boolean }> 
   dataSource: 'metadata' | 'data'
   notes?: string
   metadataRules?: Record<string, any>
@@ -88,7 +88,6 @@ export async function GET() {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 })
   }
 }
-
 export async function POST(request: Request) {
   try {
     const { drivers } = await request.json()
@@ -102,7 +101,17 @@ export async function POST(request: Request) {
 
     const results = await Promise.all(
       drivers.map(async (driverName: string) => {
-        const group = await collection.findOne({ drivers: driverName, enabled: true })
+        // חיפוש גרופ פעיל שמכיל את הדרייבר
+        const group = await collection.findOne({
+          enabled: true,
+          drivers: {
+            $elemMatch: {
+              name: driverName,
+              enabled: true
+            }
+          }
+        })
+
         return {
           driver: driverName,
           found: !!group,

@@ -55,7 +55,7 @@ export interface DriverGroup {
   notes?: string
   dataSource: 'metadata' | 'data'
   enabled: boolean
-  drivers: string[]
+  drivers: (string | { name: string; enabled: boolean })[]
   version?: number
   history?: HistoryItem[]
   

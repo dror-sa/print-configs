@@ -39,7 +39,7 @@ export default function Home() {
     const searchLower = search.toLowerCase()
     return (
       group.groupName?.toLowerCase().includes(searchLower) ||
-      group.drivers?.some(d => d.toLowerCase().includes(searchLower)) ||
+      group.drivers?.some(d => (typeof d === 'string' ? d : d.name).toLowerCase().includes(searchLower)) ||
       group.notes?.toLowerCase().includes(searchLower)
     )
   })
@@ -93,7 +93,9 @@ export default function Home() {
             
             <div className={styles.driversList}>
               {group.drivers?.slice(0, 3).map((driver, i) => (
-                <span key={i} className={styles.driverTag}>{driver}</span>
+                <span key={i} className={styles.driverTag}>
+                  {typeof driver === 'string' ? driver : driver.name}
+                </span>
               ))}
               {group.drivers && group.drivers.length > 3 && (
                 <span className={styles.moreTag}>+{group.drivers.length - 3} עוד</span>
@@ -104,7 +106,9 @@ export default function Home() {
               <div className={styles.details}>
                 <h4 className={styles.detailsTitle}>כל הדרייברים:</h4>
                 {group.drivers?.map((driver, i) => (
-                  <div key={i} className={styles.detailDriver}>{driver}</div>
+                  <div key={i} className={styles.detailDriver}>
+                    {typeof driver === 'string' ? driver : driver.name}
+                  </div>
                 ))}
                 
                 <h4 className={styles.detailsTitle}>חוקים:</h4>

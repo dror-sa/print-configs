@@ -46,7 +46,12 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
 
   const updateDriver = (index: number, value: string) => {
     const newDrivers = [...(formData.drivers || [])]
-    newDrivers[index] = value
+    const current = newDrivers[index]
+    if (typeof current === 'object' && current !== null) {
+      newDrivers[index] = { ...current, name: value }
+    } else {
+      newDrivers[index] = value
+    }
     updateField('drivers', newDrivers)
   }
 
@@ -196,11 +201,40 @@ export default function EditDialog({ group, onClose, onSave }: EditDialogProps) 
                 <div key={index} className={styles.driverRow}>
                   <input
                     type="text"
-                    value={driver}
+                    value={typeof driver === 'string' ? driver : driver.name}
                     onChange={(e) => updateDriver(index, e.target.value)}
                     className={styles.driverInput}
                     placeholder="שם הדרייבר..."
                   />
+                  {typeof driver !== 'string' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newDrivers = [...(formData.drivers || [])];
+                        const current = newDrivers[index];
+                        if (typeof current !== 'string') {
+                          newDrivers[index] = { ...current, enabled: !current.enabled };
+                          updateField('drivers', newDrivers);
+                        }
+                      }}
+                      className={styles.toggle}
+                      style={{ 
+                        backgroundColor: driver.enabled ? '#10b981' : '#e5e7eb',
+                        marginRight: '8px',
+                        width: '36px',
+                        height: '20px'
+                      }}
+                    >
+                      <div 
+                        className={styles.toggleKnob}
+                        style={{ 
+                          width: '16px',
+                          height: '16px',
+                          transform: driver.enabled ? 'translateX(16px)' : 'translateX(0)' 
+                        }}
+                      />
+                    </button>
+                  )}
                   <button
                     onClick={() => removeDriver(index)}
                     className={styles.deleteButton}

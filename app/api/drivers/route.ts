@@ -1,6 +1,9 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 
+// מבטל את ה-cache של Next.js - תמיד שואל את הדאטאבייס
+export const dynamic = 'force-dynamic'
+
 const client = new MongoClient(process.env.MONGODB_URI!)
 
 export async function GET() {

@@ -13,7 +13,7 @@ export default function Home() {
   const [editingGroup, setEditingGroup] = useState<DriverGroup | null>(null)
 
   const fetchDrivers = () => {
-    fetch('/api/drivers')
+    fetch('/api/drivers', { cache: 'no-store' })
       .then(res => res.json())
       .then((data: DriverGroup[]) => {
         setDrivers(data)
